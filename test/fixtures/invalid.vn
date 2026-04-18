@@ -1,0 +1,6 @@
+[scene: start]
+else:
+case "A":
+- "Orphan option":
+broken fallback text
+end

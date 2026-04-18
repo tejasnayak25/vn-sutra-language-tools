@@ -1,0 +1,38 @@
+{
+  "Scene header": {
+    "prefix": "scene",
+    "body": [
+      "[scene: ${1:start}]",
+      "$0"
+    ],
+    "description": "Create a scene header"
+  },
+  "If else": {
+    "prefix": "if",
+    "body": [
+      "if ${1:\\$var} ${2:===} ${3:\"value\"}:",
+      "    ${4:actor}: ${5:Then branch}",
+      "else:",
+      "    ${6:actor}: ${7:Else branch}"
+    ],
+    "description": "Insert an if/else block"
+  },
+  "Choice block": {
+    "prefix": "choice",
+    "body": [
+      "> choice ${1:\\$route}: \"${2:Pick a path}\"",
+      "    - \"${3:Left}\":",
+      "        ${4:actor}: ${5:You chose left}",
+      "    - \"${6:Right}\":",
+      "        ${7:actor}: ${8:You chose right}"
+    ],
+    "description": "Insert choice shorthand"
+  },
+  "Generic action": {
+    "prefix": "@",
+    "body": [
+      "@${1:action.type} ${2:key}=${3:\"value\"}"
+    ],
+    "description": "Insert a generic @ action"
+  }
+}

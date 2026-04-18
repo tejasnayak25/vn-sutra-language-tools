@@ -1,0 +1,40 @@
+# VN-Sutra extension test file
+# Use this file to validate highlighting, completion, and lint diagnostics.
+
+[scene: start]
+transition: fade #000000 250
+@background reset=true asset="futon_room"
+@actor.reset actor="mary" fields=["scale"]
+mary: Welcome to VN-Sutra
+> input $name: "What's your name?"
+storage set: playerName = $name
+if $name === "Peanut":
+    mary: Welcome back
+else:
+    mary: Nice to meet you
+
+> choice $route: "Pick a path"
+    - "Left":
+        jump: left_path
+    - "Right":
+        jump: right_path
+
+[scene: left_path]
+bg: apartment_ext
+music play: theme_intro
+flash screen #ffffff 120
+jump: ending
+
+[scene: right_path]
+@actor.call actor="mary" method="slideIn" args=[0.5,1]
+shake screen 5 300
+jump: ending
+
+[scene: ending]
+end
+
+# ---- Intentionally invalid lines below (for lint testing) ----
+else:
+case "A":
+- "Orphan option":
+this is fallback raw dialog line maybe typo

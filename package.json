@@ -1,0 +1,109 @@
+{
+  "name": "vnsutra-language-tools",
+  "displayName": "VN-Sutra Language Tools",
+  "description": "Syntax highlighting, autocomplete, and lint diagnostics for VN-Sutra .vn files.",
+  "version": "0.0.1",
+  "publisher": "tejasnayak25",
+  "author": "Tejas Nayak",
+  "homepage": "https://github.com/tejasnayak25/vn-sutra-language-tools#readme",
+  "bugs": {
+    "url": "https://github.com/tejasnayak25/vn-sutra-language-tools/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tejasnayak25/vn-sutra-language-tools.git"
+  },
+  "license": "MIT",
+  "qna": "https://github.com/tejasnayak25/vn-sutra-language-tools/discussions",
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
+  "icon": "media/icon.png",
+  "keywords": [
+    "vn",
+    "visual novel",
+    "language support",
+    "syntax highlighting",
+    "autocomplete",
+    "lint"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "vn",
+        "aliases": [
+          "VN-Sutra",
+          "vn"
+        ],
+        "extensions": [
+          ".vn"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vn",
+        "scopeName": "source.vn",
+        "path": "./syntaxes/vn.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "vn",
+        "path": "./snippets/vn.code-snippets"
+      }
+    ],
+    "configuration": {
+      "title": "VN-Sutra",
+      "properties": {
+        "vnsutra.lint.unknownLine": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn on lines that do not match known VN syntax and will fall back to raw dialog."
+        },
+        "vnsutra.lint.requireSceneHeader": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when non-comment lines appear before the first [scene: ...] header."
+        },
+        "vnsutra.lint.requireIndentStep": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when indentation is not in 4-space steps for nested VN blocks."
+        },
+        "vnsutra.lint.warnTabIndent": {
+          "type": "boolean",
+          "default": true,
+          "description": "Warn when leading tabs are used for indentation."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "compile-tests": "tsc -p ./test/tsconfig.json",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit -p ./",
+    "test": "npm run compile && npm run compile-tests && node ./out-test/runTest.js",
+    "package:vsix": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^20.19.39",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.2",
+    "mocha": "^10.7.0",
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,17 @@
+[scene: start]
+> choice $route: "Pick a path"
+    - "Left":
+        jump: left
+    - "Right":
+        jump: right
+
+[scene: left]
+mary: Left path
+jump: end
+
+[scene: right]
+mary: Right path
+jump: end
+
+[scene: end]
+end

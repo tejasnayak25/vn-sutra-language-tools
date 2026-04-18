@@ -1,0 +1,179 @@
+{
+  "name": "VN-Sutra",
+  "scopeName": "source.vn",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#scene"
+    },
+    {
+      "include": "#control"
+    },
+    {
+      "include": "#core"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#dialog"
+    },
+    {
+      "include": "#genericAction"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.vn",
+          "match": "^\\s*#.*$"
+        }
+      ]
+    },
+    "scene": {
+      "patterns": [
+        {
+          "name": "meta.scene.header.vn",
+          "match": "^\\s*(\\[)(?i:scene)(\\s*:\\s*)([A-Za-z0-9_-]+)(\\])\\s*$",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.bracket.begin.vn"
+            },
+            "2": {
+              "name": "keyword.operator.separator.vn"
+            },
+            "3": {
+              "name": "entity.name.section.vn"
+            },
+            "4": {
+              "name": "punctuation.definition.bracket.end.vn"
+            }
+          }
+        }
+      ]
+    },
+    "control": {
+      "patterns": [
+        {
+          "name": "keyword.control.vn",
+          "match": "^\\s*(if|else|switch|case|default|repeat)\\b"
+        },
+        {
+          "name": "keyword.control.choice.vn",
+          "match": "^\\s*>\\s*choice\\b"
+        },
+        {
+          "name": "keyword.control.option.vn",
+          "match": "^\\s*-\\s*\\\".*\\\"\\s*:"
+        }
+      ]
+    },
+    "core": {
+      "patterns": [
+        {
+          "name": "keyword.command.vn",
+          "match": "^\\s*(jump|end|bg|sfx|wait|delete|flash\\s+screen|shake\\s+screen|transition|music\\s+play|music\\s+stop|actor\\s+show|actor\\s+hide|storage\\s+set|storage\\s+get|storage\\s+remove)\\b"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.vn",
+          "match": "\\$[A-Za-z_][A-Za-z0-9_]*"
+        }
+      ]
+    },
+    "dialog": {
+      "patterns": [
+        {
+          "name": "meta.dialog.actor.vn",
+          "match": "^\\s*([A-Za-z][A-Za-z0-9_-]*)(\\s*:)\\s*(.*)$",
+          "captures": {
+            "1": {
+              "name": "entity.name.tag.actor.vn"
+            },
+            "2": {
+              "name": "punctuation.separator.key-value.vn"
+            },
+            "3": {
+              "name": "string.unquoted.dialog.vn"
+            }
+          }
+        }
+      ]
+    },
+    "genericAction": {
+      "patterns": [
+        {
+          "name": "meta.action.generic.vn",
+          "match": "^\\s*(@[A-Za-z0-9_.-]+)",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.action.vn"
+            }
+          }
+        },
+        {
+          "name": "variable.parameter.key.vn",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(=)",
+          "captures": {
+            "1": {
+              "name": "variable.parameter.vn"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.vn"
+            }
+          }
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.vn",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.vn",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.vn",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.vn",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.vn",
+          "match": "\\b-?\\d+(?:\\.\\d+)?\\b"
+        },
+        {
+          "name": "constant.language.boolean.vn",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    }
+  }
+}

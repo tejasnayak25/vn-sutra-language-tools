@@ -1,0 +1,47 @@
+# VN-Sutra valid test file
+# Use this for baseline debugging with zero intentional syntax errors.
+
+[scene: start]
+transition: fade #000000 250
+@background reset=true asset="futon_room"
+@actor.reset actor="mary" fields=["scale"]
+mary: Welcome to VN-Sutra
+> input $name: "What's your name?"
+storage set: playerName = $name
+$score = 0
+
+if $name === "Peanut":
+    mary: Welcome back
+    $score += 1
+else:
+    mary: Nice to meet you
+
+> choice $route: "Pick a path"
+    - "Left":
+        jump: left_path
+    - "Right":
+        jump: right_path
+
+[scene: left_path]
+bg: apartment_ext
+music play: theme_intro
+flash screen #ffffff 120
+repeat 2:
+    mary: Left loop branch
+jump: ending
+
+[scene: right_path]
+@actor.call actor="mary" method="slideIn" args=[0.5,1]
+shake screen 5 300
+switch $name:
+    case "Peanut":
+        mary: Special route for Peanut
+    default:
+        mary: Standard route
+jump: ending
+
+[scene: ending]
+storage get: playerName = $loadedName
+mary: Thanks for playing, $loadedName
+music stop
+end
