@@ -1,10 +1,11 @@
 import * as assert from "assert";
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 
 suite("VN-Sutra Extension", () => {
   suiteSetup(async () => {
-    const extension = vscode.extensions.getExtension("local.vnsutra-language-tools");
+    const extension = await resolveCurrentExtension();
     assert.ok(extension, "Extension should be available in test host.");
     await extension?.activate();
   });
@@ -159,6 +160,24 @@ async function openFixture(fileName: string): Promise<vscode.TextDocument> {
   const doc = await vscode.workspace.openTextDocument(uri);
   await vscode.window.showTextDocument(doc);
   return doc;
+}
+
+async function resolveCurrentExtension(): Promise<vscode.Extension<unknown> | undefined> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root) {
+    return undefined;
+  }
+
+  const packageJsonPath = path.join(root, "package.json");
+  const packageJsonRaw = fs.readFileSync(packageJsonPath, "utf8");
+  const packageJson = JSON.parse(packageJsonRaw) as { name?: string; publisher?: string };
+
+  if (!packageJson.name || !packageJson.publisher) {
+    return undefined;
+  }
+
+  const extensionId = `${packageJson.publisher}.${packageJson.name}`;
+  return vscode.extensions.getExtension(extensionId);
 }
 
 async function waitForDiagnostics(
