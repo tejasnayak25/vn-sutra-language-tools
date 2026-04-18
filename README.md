@@ -5,6 +5,7 @@ VS Code extension support for `.vn` story scripts used by VN-Sutra.
 ## Features
 
 - Syntax highlighting for scene headers, commands, variables, dialogue actors, `@` actions, strings, numbers, and comments.
+- `.vn` file icon contribution for language-specific file identity.
 - Autocomplete for:
   - control keywords (`if`, `switch`, `repeat`, etc.)
   - shorthand commands (`jump:`, `bg:`, `music play:`, etc.)
@@ -20,6 +21,31 @@ VS Code extension support for `.vn` story scripts used by VN-Sutra.
   - block body indentation and 4-space indent step checks
   - optional warnings for tab-based indentation
   - unknown lines that likely fall back to raw dialog
+- Project workflow commands:
+  - create a new VN-Sutra project from latest repository release source
+  - run project setup (`npm install`, `npm run dev`)
+  - run any workspace npm script from a picker
+  - refresh dynamic script commands when package scripts change
+
+## Commands
+
+Available in Command Palette under `VN-Sutra`:
+
+- `Create New VN Project`
+- `Run Project Setup (npm install + npm run dev)`
+- `Run NPM Script From package.json`
+- `Refresh Dynamic Script Commands`
+
+### Create Project flow
+
+`Create New VN Project` does the following:
+
+1. Prompts for a target folder and requires it to be empty.
+2. Fetches latest VN-Sutra source metadata from GitHub (with tag/branch fallbacks).
+3. Downloads and extracts the source zip into the chosen folder.
+4. Optionally opens the created project folder (current window or new window).
+
+Use `Run Project Setup (npm install + npm run dev)` after opening the project.
 
 ## Project layout
 
@@ -52,6 +78,7 @@ VS Code extension support for `.vn` story scripts used by VN-Sutra.
 - Confirm scene, actor, and variable suggestions appear.
 - Confirm diagnostics appear on intentionally invalid lines at the end of `examples/test.vn`.
 - Toggle settings under `vnsutra.lint.*` and verify diagnostics update.
+- Validate project commands from Command Palette (`VN-Sutra: ...`).
 
 ## Automated tests
 

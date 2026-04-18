@@ -1,8 +1,8 @@
 {
   "name": "vnsutra-language-tools",
   "displayName": "VN-Sutra Language Tools",
-  "description": "Syntax highlighting, autocomplete, and lint diagnostics for VN-Sutra .vn files.",
-  "version": "0.0.3",
+  "description": "Language tools and project workflow for VN-Sutra .vn files: highlighting, autocomplete, linting, project creation, and npm script runners.",
+  "version": "0.0.4",
   "publisher": "tejasnayak25",
   "author": "Tejas Nayak",
   "homepage": "https://github.com/tejasnayak25/vn-sutra-language-tools#readme",
@@ -26,7 +26,10 @@
     "language support",
     "syntax highlighting",
     "autocomplete",
-    "lint"
+    "lint",
+    "scaffolding",
+    "project bootstrap",
+    "npm scripts"
   ],
   "engines": {
     "vscode": "^1.90.0"
@@ -121,7 +124,7 @@
     "watch": "tsc -watch -p ./",
     "lint": "tsc --noEmit -p ./",
     "test": "npm run compile && npm run compile-tests && node ./out-test/runTest.js",
-    "package:vsix": "vsce package --no-dependencies"
+    "package:vsix": "vsce package"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",

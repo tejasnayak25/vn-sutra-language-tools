@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.4 - 2026-04-18
+
+### Fixed
+- VSIX packaging now includes runtime dependencies (removed `--no-dependencies` from packaging script).
+- Resolved deployment-only command failures caused by missing `adm-zip` in packaged extension.
+
 ## 0.0.3 - 2026-04-18
 
 ### Added
