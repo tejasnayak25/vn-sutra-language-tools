@@ -2,7 +2,7 @@
   "name": "vnsutra-language-tools",
   "displayName": "VN-Sutra Language Tools",
   "description": "Syntax highlighting, autocomplete, and lint diagnostics for VN-Sutra .vn files.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "tejasnayak25",
   "author": "Tejas Nayak",
   "homepage": "https://github.com/tejasnayak25/vn-sutra-language-tools#readme",
@@ -37,6 +37,28 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "vnsutra.createProject",
+        "title": "Create New VN Project",
+        "category": "VN-Sutra"
+      },
+      {
+        "command": "vnsutra.runProjectSetup",
+        "title": "Run Project Setup (npm install + npm run dev)",
+        "category": "VN-Sutra"
+      },
+      {
+        "command": "vnsutra.runWorkspaceScriptPicker",
+        "title": "Run NPM Script From package.json",
+        "category": "VN-Sutra"
+      },
+      {
+        "command": "vnsutra.refreshScriptCommands",
+        "title": "Refresh Dynamic Script Commands",
+        "category": "VN-Sutra"
+      }
+    ],
     "languages": [
       {
         "id": "vn",
@@ -47,6 +69,10 @@
         "extensions": [
           ".vn"
         ],
+        "icon": {
+          "light": "./media/vn-file-icon.svg",
+          "dark": "./media/vn-file-icon.svg"
+        },
         "configuration": "./language-configuration.json"
       }
     ],
@@ -98,6 +124,7 @@
     "package:vsix": "vsce package --no-dependencies"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/mocha": "^10.0.7",
     "@types/node": "^20.19.39",
     "@types/vscode": "^1.90.0",
@@ -105,5 +132,8 @@
     "@vscode/vsce": "^3.2.2",
     "mocha": "^10.7.0",
     "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16"
   }
 }

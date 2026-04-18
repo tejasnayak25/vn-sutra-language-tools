@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.0.3 - 2026-04-18
+
+### Added
+- Project bootstrap command: `VN-Sutra: Create New VN Project`.
+- Dedicated setup command: `VN-Sutra: Run Project Setup (npm install + npm run dev)`.
+- Dynamic script support from workspace `package.json` with picker + refresh commands.
+- `.vn` language icon contribution.
+
+### Changed
+- Project creation flow now prompts for open-folder behavior (current window vs new window).
+- Project bootstrap source download now has metadata and archive URL fallbacks.
+
+### Fixed
+- Setup flow now uses a single terminal and avoids hidden extra terminal creation.
+
 ## 0.0.2 - 2026-04-18
 
 ### Added

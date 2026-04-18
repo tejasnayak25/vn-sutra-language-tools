@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import AdmZip = require("adm-zip");
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 
 type DocumentSymbols = {
   scenes: Set<string>;
@@ -6,6 +10,11 @@ type DocumentSymbols = {
   vars: Set<string>;
   assets: Set<string>;
   options: Set<string>;
+};
+
+type WorkspaceScripts = {
+  workspaceFolder: vscode.WorkspaceFolder;
+  scripts: Record<string, string>;
 };
 
 type BlockKind = "if" | "switch" | "choice";
@@ -55,6 +64,9 @@ const ACTION_KEYS: Record<string, string[]> = {
 };
 
 const TRANSITION_TYPES = ["fade", "in", "out"];
+const VNSUTRA_RELEASE_API = "https://api.github.com/repos/tejasnayak25/vnsutra/releases/latest";
+const VNSUTRA_TAGS_API = "https://api.github.com/repos/tejasnayak25/vnsutra/tags";
+const VNSUTRA_REPO_API = "https://api.github.com/repos/tejasnayak25/vnsutra";
 
 const KNOWN_LINE_MATCHERS: RegExp[] = [
   /^\s*\[\s*scene\s*:\s*[A-Za-z0-9_-]+\s*\]\s*$/i,
@@ -94,6 +106,7 @@ const KNOWN_LINE_MATCHERS: RegExp[] = [
 
 export function activate(context: vscode.ExtensionContext): void {
   const diagnostics = vscode.languages.createDiagnosticCollection("vnsutra");
+  const dynamicScriptDisposables = new Map<string, vscode.Disposable>();
 
   const refreshDiagnostics = (document: vscode.TextDocument): void => {
     if (document.languageId !== "vn") {
@@ -130,10 +143,431 @@ export function activate(context: vscode.ExtensionContext): void {
       " "
     )
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vnsutra.createProject", async () => {
+      await createVnSutraProject();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vnsutra.runProjectSetup", async () => {
+      await runVnSutraProjectSetup();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vnsutra.runWorkspaceScriptPicker", async () => {
+      await runWorkspaceScriptPicker();
+    })
+  );
+
+  const refreshScriptCommands = async (): Promise<void> => {
+    disposeDynamicScriptCommands(dynamicScriptDisposables);
+    const workspaceScripts = await readWorkspaceScripts();
+    if (!workspaceScripts) {
+      return;
+    }
+
+    const commandNamesInUse = new Set<string>();
+    for (const scriptName of Object.keys(workspaceScripts.scripts)) {
+      const commandId = buildDynamicScriptCommandId(scriptName, commandNamesInUse);
+      const commandDisposable = vscode.commands.registerCommand(commandId, async () => {
+        runScriptInTerminal(workspaceScripts.workspaceFolder.uri.fsPath, scriptName);
+      });
+      dynamicScriptDisposables.set(commandId, commandDisposable);
+      context.subscriptions.push(commandDisposable);
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vnsutra.refreshScriptCommands", async () => {
+      await refreshScriptCommands();
+      void vscode.window.showInformationMessage("VN-Sutra script commands refreshed from package.json.");
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (document) => {
+      if (path.basename(document.uri.fsPath).toLowerCase() === "package.json") {
+        await refreshScriptCommands();
+      }
+    })
+  );
+
+  context.subscriptions.push({
+    dispose: () => disposeDynamicScriptCommands(dynamicScriptDisposables)
+  });
+
+  void refreshScriptCommands();
 }
 
 export function deactivate(): void {
   // No teardown needed; subscriptions handle disposal.
+}
+
+async function createVnSutraProject(): Promise<void> {
+  const targetFolder = await promptForTargetFolder();
+  if (!targetFolder) {
+    return;
+  }
+
+  const targetPath = targetFolder.fsPath;
+  try {
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "VN-Sutra: Creating project",
+        cancellable: false
+      },
+      async (progress) => {
+        progress.report({ message: "Fetching latest release metadata..." });
+        const release = await fetchLatestRelease();
+
+        progress.report({ message: `Downloading ${release.tag_name} source archive...` });
+        const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "vnsutra-project-"));
+        try {
+          const zipPath = path.join(tempRoot, "source.zip");
+          const extractPath = path.join(tempRoot, "extract");
+          await fs.mkdir(extractPath, { recursive: true });
+
+          const fallbackZipUrls = [
+            release.zipball_url,
+            `https://github.com/tejasnayak25/vnsutra/archive/refs/tags/${release.tag_name}.zip`,
+            `https://codeload.github.com/tejasnayak25/vnsutra/zip/refs/tags/${release.tag_name}`
+          ];
+          await downloadFileWithFallback(fallbackZipUrls, zipPath);
+
+          progress.report({ message: "Extracting source files..." });
+          const archive = new AdmZip(zipPath);
+          archive.extractAllTo(extractPath, true);
+
+          const sourceRoot = await findExtractedRoot(extractPath);
+          await copyDirectoryContents(sourceRoot, targetPath);
+        } finally {
+          await fs.rm(tempRoot, { recursive: true, force: true });
+        }
+      }
+    );
+
+    const nextAction = await vscode.window.showInformationMessage(
+      `VN-Sutra project created in ${targetPath}. Open this folder now?`,
+      "Open Folder",
+      "Done"
+    );
+
+    if (nextAction === "Open Folder") {
+      const windowChoice = await vscode.window.showQuickPick(
+        [
+          {
+            label: "Open in Current Window",
+            description: "Replace current workspace",
+            value: "current"
+          },
+          {
+            label: "Open in New Window",
+            description: "Keep current workspace open",
+            value: "new"
+          }
+        ],
+        {
+          title: "VN-Sutra: Open project folder",
+          placeHolder: "Choose how to open the created project"
+        }
+      );
+
+      if (windowChoice) {
+        await vscode.commands.executeCommand("vscode.openFolder", targetFolder, windowChoice.value === "new");
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    void vscode.window.showErrorMessage(`Failed to create VN-Sutra project: ${message}`);
+  }
+}
+
+async function runVnSutraProjectSetup(): Promise<void> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+  if (!workspaceFolder) {
+    void vscode.window.showWarningMessage("Open a project folder first, then run VN-Sutra project setup.");
+    return;
+  }
+
+  const terminal = vscode.window.createTerminal({
+    name: "VN-Sutra Project Setup",
+    cwd: workspaceFolder.fsPath
+  });
+  terminal.show(true);
+  terminal.sendText("npm install");
+  terminal.sendText("npm run dev");
+}
+
+async function runWorkspaceScriptPicker(): Promise<void> {
+  const workspaceScripts = await readWorkspaceScripts();
+  if (!workspaceScripts) {
+    void vscode.window.showWarningMessage("No package.json with scripts found in the current workspace folder.");
+    return;
+  }
+
+  const scriptEntries = Object.entries(workspaceScripts.scripts);
+  if (scriptEntries.length === 0) {
+    void vscode.window.showWarningMessage("No npm scripts found in package.json.");
+    return;
+  }
+
+  const pickedScript = await vscode.window.showQuickPick(
+    scriptEntries.map(([name, command]) => ({
+      label: name,
+      description: command
+    })),
+    {
+      title: "VN-Sutra: Run npm script",
+      placeHolder: "Select a script from package.json"
+    }
+  );
+
+  if (!pickedScript) {
+    return;
+  }
+
+  runScriptInTerminal(workspaceScripts.workspaceFolder.uri.fsPath, pickedScript.label);
+}
+
+async function readWorkspaceScripts(): Promise<WorkspaceScripts | undefined> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    return undefined;
+  }
+
+  const packageJsonPath = path.join(workspaceFolder.uri.fsPath, "package.json");
+  try {
+    const packageRaw = await fs.readFile(packageJsonPath, "utf8");
+    const packageJson = JSON.parse(packageRaw) as { scripts?: Record<string, string> };
+    return {
+      workspaceFolder,
+      scripts: packageJson.scripts ?? {}
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function runScriptInTerminal(workspacePath: string, scriptName: string, directCommand?: string): void {
+  const terminal = vscode.window.createTerminal({
+    name: "VN-Sutra Scripts",
+    cwd: workspacePath
+  });
+  terminal.show(true);
+  terminal.sendText(directCommand ?? `npm run ${scriptName}`);
+}
+
+function buildDynamicScriptCommandId(scriptName: string, idsInUse: Set<string>): string {
+  const base = scriptName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "script";
+
+  let attempt = `vnsutra.runScript.${base}`;
+  let index = 1;
+  while (idsInUse.has(attempt)) {
+    attempt = `vnsutra.runScript.${base}_${index}`;
+    index += 1;
+  }
+  idsInUse.add(attempt);
+  return attempt;
+}
+
+function disposeDynamicScriptCommands(disposables: Map<string, vscode.Disposable>): void {
+  for (const disposable of disposables.values()) {
+    disposable.dispose();
+  }
+  disposables.clear();
+}
+
+async function promptForTargetFolder(): Promise<vscode.Uri | undefined> {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
+
+  while (true) {
+    const quickPick = await vscode.window.showQuickPick(
+      [
+        {
+          label: workspaceFolder ? "Use current workspace folder" : "No workspace folder available",
+          description: workspaceFolder?.fsPath,
+          value: "current",
+          disabled: !workspaceFolder
+        },
+        {
+          label: "Select another folder",
+          description: "Choose an empty folder for project extraction",
+          value: "select"
+        }
+      ],
+      {
+        title: "VN-Sutra: Choose target folder",
+        placeHolder: "Project source will be extracted into an empty folder"
+      }
+    );
+
+    if (!quickPick) {
+      return undefined;
+    }
+
+    let target: vscode.Uri | undefined;
+    if (quickPick.value === "current") {
+      target = workspaceFolder;
+    } else {
+      const selected = await vscode.window.showOpenDialog({
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        openLabel: "Use this folder"
+      });
+      target = selected?.[0];
+    }
+
+    if (!target) {
+      return undefined;
+    }
+
+    const isEmpty = await isDirectoryEmpty(target.fsPath);
+    if (isEmpty) {
+      return target;
+    }
+
+    const retry = await vscode.window.showWarningMessage(
+      "Target folder is not empty. Please choose an empty folder.",
+      "Choose Again",
+      "Cancel"
+    );
+    if (retry !== "Choose Again") {
+      return undefined;
+    }
+  }
+}
+
+async function isDirectoryEmpty(folderPath: string): Promise<boolean> {
+  const entries = await fs.readdir(folderPath);
+  return entries.length === 0;
+}
+
+async function fetchLatestRelease(): Promise<{ zipball_url: string; tag_name: string }> {
+  const failures: string[] = [];
+
+  try {
+    const releasePayload = await requestJson<{ zipball_url?: string; tag_name?: string }>(VNSUTRA_RELEASE_API);
+    if (releasePayload.zipball_url && releasePayload.tag_name) {
+      return {
+        zipball_url: releasePayload.zipball_url,
+        tag_name: releasePayload.tag_name
+      };
+    }
+    failures.push("releases/latest -> missing zipball_url/tag_name");
+  } catch (error) {
+    failures.push(`releases/latest -> ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  try {
+    const tagsPayload = await requestJson<Array<{ name?: string; zipball_url?: string }>>(VNSUTRA_TAGS_API);
+    const firstTag = tagsPayload.find((tag) => Boolean(tag.name));
+    if (firstTag?.name) {
+      return {
+        zipball_url:
+          firstTag.zipball_url ?? `https://codeload.github.com/tejasnayak25/vnsutra/zip/refs/tags/${firstTag.name}`,
+        tag_name: firstTag.name
+      };
+    }
+    failures.push("tags -> no tags found");
+  } catch (error) {
+    failures.push(`tags -> ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  try {
+    const repoPayload = await requestJson<{ default_branch?: string }>(VNSUTRA_REPO_API);
+    const branch = repoPayload.default_branch ?? "main";
+    return {
+      zipball_url: `https://codeload.github.com/tejasnayak25/vnsutra/zip/refs/heads/${branch}`,
+      tag_name: branch
+    };
+  } catch (error) {
+    failures.push(`repo -> ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  throw new Error(`Could not resolve VN-Sutra source metadata. ${failures.join(" | ")}`);
+}
+
+async function requestJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    redirect: "follow",
+    headers: {
+      "User-Agent": "vnsutra-language-tools",
+      Accept: "application/vnd.github+json"
+    }
+  });
+
+  if (!response.ok) {
+    const bodyText = (await response.text()).trim();
+    const bodyPreview = bodyText.slice(0, 160);
+    throw new Error(`HTTP ${response.status} ${response.statusText}${bodyPreview ? `: ${bodyPreview}` : ""}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+async function downloadFileWithFallback(urls: string[], outputPath: string): Promise<void> {
+  const failures: string[] = [];
+
+  for (const url of urls) {
+    try {
+      await downloadFile(url, outputPath);
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push(`${url} -> ${message}`);
+    }
+  }
+
+  throw new Error(`Failed to download source archive from all known URLs. ${failures.join(" | ")}`);
+}
+
+async function downloadFile(url: string, outputPath: string): Promise<void> {
+  const response = await fetch(url, {
+    redirect: "follow",
+    headers: {
+      "User-Agent": "vnsutra-language-tools",
+      Accept: "*/*"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} ${response.statusText}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const data = Buffer.from(arrayBuffer);
+  await fs.writeFile(outputPath, data);
+}
+
+async function findExtractedRoot(extractPath: string): Promise<string> {
+  const entries = await fs.readdir(extractPath, { withFileTypes: true });
+  const rootDirectory = entries.find((entry) => entry.isDirectory());
+  if (!rootDirectory) {
+    throw new Error("Could not find extracted source directory in archive.");
+  }
+  return path.join(extractPath, rootDirectory.name);
+}
+
+async function copyDirectoryContents(sourcePath: string, destinationPath: string): Promise<void> {
+  const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+  for (const entry of entries) {
+    const from = path.join(sourcePath, entry.name);
+    const to = path.join(destinationPath, entry.name);
+    if (entry.isDirectory()) {
+      await fs.mkdir(to, { recursive: true });
+      await copyDirectoryContents(from, to);
+    } else if (entry.isFile()) {
+      await fs.copyFile(from, to);
+    }
+  }
 }
 
 function buildCompletions(
